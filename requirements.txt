@@ -1,0 +1,25 @@
+# LangChain & LangGraph
+langgraph>=1.0.0
+langchain>=1.0.0
+langchain-anthropic
+langchain-core
+
+# Deep Agents Framework
+deepagents
+
+# MCP Integration
+langchain-mcp-adapters
+
+# Supabase
+supabase>=2.0.0
+
+# Gmail MCP Server (choose one implementation)
+# We'll use jeremyjordan/mcp-gmail as it's most popular
+# Install via: pip install git+https://github.com/jeremyjordan/mcp-gmail.git
+
+# Utilities
+python-dotenv
+pydantic>=2.0.0
+
+# Optional: For local development
+langsmith  # For tracing/observability
