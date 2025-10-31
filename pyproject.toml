@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "email-agent-langgraph"
+version = "0.1.0"
+description = "Intelligent Email Management Agent with LangGraph and MCP"
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=1.0.0",
+    "langchain>=1.0.0",
+    "langchain-anthropic",
+    "langchain-core",
+    "deepagents",
+    "langchain-mcp-adapters",
+    "supabase>=2.0.0",
+    "python-dotenv",
+    "pydantic>=2.0.0",
+    "langsmith",
+]
+
+[tool.setuptools]
+packages = ["tools"]
