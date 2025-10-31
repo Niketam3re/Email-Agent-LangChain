@@ -8,19 +8,28 @@ import asyncio
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
-# Deep Agents
-from deepagents import create_deep_agent
-from deepagents.backends import StoreBackend
-
-# MCP Integration
-from langchain_mcp_adapters.client import MultiServerMCPClient
-
-# LangChain Core
-from langchain_core.tools import tool
+# LangChain Components
+from langchain_anthropic import ChatAnthropic
+from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage
 
 # Custom Tools
 from tools.mermaid_generator import create_mermaid_diagram_tool
+
+# Deep Agents (for advanced local usage)
+try:
+    from deepagents import create_deep_agent
+    from deepagents.backends import StoreBackend
+    DEEPAGENTS_AVAILABLE = True
+except ImportError:
+    DEEPAGENTS_AVAILABLE = False
+
+# MCP Integration (for advanced local usage)
+try:
+    from langchain_mcp_adapters.client import MultiServerMCPClient
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -248,6 +257,10 @@ async def get_mcp_tools() -> List[Any]:
     Returns:
         List of all tools from Gmail and Supabase MCP servers
     """
+    if not MCP_AVAILABLE:
+        print("Warning: MCP adapters not available. Install with: pip install langchain-mcp-adapters")
+        return []
+
     # Configure MCP servers
     mcp_config = {}
 
@@ -296,17 +309,25 @@ async def create_email_agent():
     # Combine with custom tools
     all_tools = mcp_tools + [create_mermaid_diagram_tool]
 
-    # Create Deep Agent
-    agent = create_deep_agent(
-        model="anthropic:claude-sonnet-4-5",
-        tools=all_tools,
-        system_prompt=EMAIL_AGENT_SYSTEM_PROMPT,
-        backend=lambda rt: StoreBackend(rt),  # Long-term memory via LangGraph Store
-        # Note: Deep Agents automatically include:
-        # - TodoListMiddleware (planning via write_todos)
-        # - FilesystemMiddleware (file operations)
-        # - SubAgentMiddleware (spawning sub-agents via task tool)
-    )
+    # Create Deep Agent if available, otherwise use basic agent
+    if DEEPAGENTS_AVAILABLE:
+        agent = create_deep_agent(
+            model="anthropic:claude-sonnet-4-5",
+            tools=all_tools,
+            system_prompt=EMAIL_AGENT_SYSTEM_PROMPT,
+            backend=lambda rt: StoreBackend(rt),  # Long-term memory via LangGraph Store
+            # Note: Deep Agents automatically include:
+            # - TodoListMiddleware (planning via write_todos)
+            # - FilesystemMiddleware (file operations)
+            # - SubAgentMiddleware (spawning sub-agents via task tool)
+        )
+    else:
+        # Fallback to basic agent
+        agent = create_agent(
+            model=ChatAnthropic(model="claude-sonnet-4-5"),
+            tools=all_tools,
+            system_prompt=EMAIL_AGENT_SYSTEM_PROMPT
+        )
 
     return agent
 
@@ -315,17 +336,22 @@ async def create_email_agent():
 # AGENT EXPORT
 # ============================================================================
 
-# For deployment, we need to export the agent synchronously
-# Create the agent instance
-def create_agent_sync():
-    """Synchronous wrapper for agent creation"""
-    return asyncio.run(create_email_agent())
+# For deployment: Create a simple agent without MCP initialization at import time
+# MCP tools will be initialized on first invocation
 
+# Create a basic agent with custom tools only
+# MCP tools can be added via runtime configuration or after deployment
+agent = create_agent(
+    model=ChatAnthropic(model="claude-sonnet-4-5"),
+    tools=[create_mermaid_diagram_tool],
+    system_prompt=EMAIL_AGENT_SYSTEM_PROMPT.replace(
+        "### Gmail Tools (Auto-discovered from Gmail MCP Server)",
+        "### Gmail Tools\nNote: Configure Gmail MCP server in LangSmith deployment settings to enable email tools."
+    )
+)
 
 # Export as 'app' for LangGraph deployment
-# Note: In production, you may need to handle async initialization differently
-# For now, we'll export a factory function
-app = create_agent_sync()
+app = agent
 
 
 # ============================================================================
